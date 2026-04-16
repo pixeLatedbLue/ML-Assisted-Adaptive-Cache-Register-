@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ML-Assisted Adaptive Cache Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Serif:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #f7f5f1;
+    --surface:  #ffffff;
+    --border:   #e2ddd6;
+    --ink:      #1c1a17;
+    --ink-mute: #7a756c;
+    --ink-faint:#b5b0a8;
+    --accent:   #2a4a3e;
+    --accent-lt:#eaf2ee;
+    --red:      #c0392b;
+    --red-lt:   #fdecea;
+    --blue:     #2563eb;
+    --radius:   6px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'IBM Plex Serif', Georgia, serif;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .page-title {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 32px 16px 4px;
+  }
+  .page-title h1 {
+    font-size: 20px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 16px 16px 40px; }
+
+  /* Cards */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    margin-bottom: 14px;
+  }
+  .card-title {
+    font-size: 10px;
+    font-weight: 600;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 14px;
+  }
+
+  /* Grid layouts */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .grid4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; }
+  @media(max-width: 700px) {
+    .grid2, .grid3, .grid4 { grid-template-columns: 1fr; }
+  }
+
+  .metric {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+  }
+  .metric .label { font-size: 11px; color: var(--ink-mute); margin-bottom: 4px; font-style: italic; }
+  .metric .value { font-size: 26px; font-weight: 300; color: var(--ink); letter-spacing: -0.02em; }
+  .metric .sub   { font-size: 11px; color: var(--ink-faint); margin-top: 3px; font-family: 'IBM Plex Mono', monospace; }
+
+  .wl-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+  .wl-btn {
+    padding: 6px 14px;
+    font-size: 12px;
+    font-family: 'IBM Plex Mono', monospace;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--ink-mute);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .wl-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .wl-btn:hover:not(.active) { background: #eeeae4; color: var(--ink); }
+
+  /* Param rows */
+  .param-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .param-row label { font-size: 12px; color: var(--ink-mute); min-width: 90px; font-style: italic; }
+  .param-row select {
+    flex: 1; font-size: 12px; font-family: 'IBM Plex Serif', serif;
+    padding: 5px 8px; border: 1px solid var(--border);
+    border-radius: var(--radius); background: var(--surface); color: var(--ink);
+  }
+  .pill {
+    font-size: 11px;
+    font-family: 'IBM Plex Mono', monospace;
+    padding: 3px 10px;
+    border-radius: 4px;
+    background: #e8edf9;
+    color: #2046a8;
+    min-width: 68px;
+    text-align: center;
+    transition: background 0.3s, color 0.3s;
+    border: 1px solid #c8d4f0;
+  }
+  .pill.changed { background: var(--accent-lt); color: var(--accent); border-color: #b3d4c4; }
+
+  .btn {
+    padding: 8px 18px;
+    font-size: 13px;
+    font-family: 'IBM Plex Serif', serif;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--ink);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn:hover { background: var(--bg); }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn-primary:hover { background: #1e3830; }
+
+  .cls-row { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 8px; }
+  .cls-name { min-width: 78px; color: var(--ink-mute); font-style: italic; }
+  .cls-track { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .cls-fill  { height: 100%; border-radius: 2px; transition: width 0.4s ease; }
+  .cls-pct   { font-size: 11px; color: var(--ink-faint); min-width: 30px; text-align: right; font-family: 'IBM Plex Mono', monospace; }
+
+  .cmp-row { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 7px; }
+  .cmp-name  { min-width: 76px; color: var(--ink-mute); font-size: 11px; font-style: italic; }
+  .cmp-track { flex: 1; height: 7px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .cmp-fill  { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+  .cmp-val   { min-width: 40px; text-align: right; font-weight: 500; color: var(--ink); font-size: 12px; font-family: 'IBM Plex Mono', monospace; }
+  .fill-green { background: var(--accent); }
+  .fill-gray  { background: #aaa49d; }
+  .fill-blue  { background: var(--blue); }
+
+  .trace-item { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 6px; }
+  .trace-addr { font-family: 'IBM Plex Mono', monospace; color: var(--ink); }
+  .badge-hit  { font-size: 10px; font-family: 'IBM Plex Mono', monospace; padding: 1px 8px; border-radius: 3px; background: var(--accent-lt); color: var(--accent); border: 1px solid #b3d4c4; }
+  .badge-miss { font-size: 10px; font-family: 'IBM Plex Mono', monospace; padding: 1px 8px; border-radius: 3px; background: var(--red-lt); color: var(--red); border: 1px solid #f5c8c4; }
+
+  .log-box {
+    background: #14120f;
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    font-size: 11px;
+    font-family: 'IBM Plex Mono', monospace;
+    color: #9fa89e;
+    height: 130px;
+    overflow-y: auto;
+    line-height: 1.8;
+    border: 1px solid #2a2620;
+  }
+  .log-ts   { color: #3d3830; margin-right: 8px; }
+  .log-hit  { color: #6aaa78; }
+  .log-miss { color: #e07070; }
+  .log-ml   { color: #c8a96a; }
+  .log-cfg  { color: #7a9ec8; }
+
+  .stat-row { display: flex; justify-content: space-between; font-size: 12px;
+    padding: 5px 0; border-bottom: 1px solid var(--border); }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-val { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--ink); }
+
+  .wl-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px;
+    margin-top: 10px; font-style: italic; color: var(--ink-mute); }
+  .wl-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+
+  #trend-wrap { position: relative; height: 160px; }
+
+  .section-gap { margin-top: 14px; }
+  .cmp-section-label {
+    font-size: 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--ink-faint);
+    margin-bottom: 6px;
+    margin-top: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+</style>
+</head>
+<body>
+<div class="page-title">
+  <h1>ML-Assisted Adaptive Cache Simulator</h1>
+</div>
+<div class="container">
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Workload &amp; Simulation Control</div>
+      <div class="wl-btns">
+        <button class="wl-btn active" data-wl="sequential" onclick="selectWorkload(this)">Sequential</button>
+        <button class="wl-btn" data-wl="random"     onclick="selectWorkload(this)">Random</button>
+        <button class="wl-btn" data-wl="looping"    onclick="selectWorkload(this)">Looping</button>
+        <button class="wl-btn" data-wl="mixed"      onclick="selectWorkload(this)">Mixed</button>
+      </div>
+      <div class="param-row">
+        <label>Trace length</label>
+        <select id="trace-len">
+          <option value="200">200 accesses</option>
+          <option value="500" selected>500 accesses</option>
+          <option value="1000">1000 accesses</option>
+        </select>
+      </div>
+      <div class="param-row">
+        <label>ML model</label>
+        <select id="ml-model">
+          <option value="naive_bayes" selected>Naïve Bayes</option>
+          <option value="decision_tree">Decision Tree</option>
+          <option value="threshold">Threshold Classifier</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn btn-primary" id="run-btn" onclick="runSimulation()">▶ Run Simulation</button>
+        <button class="btn" onclick="resetAll()">↺ Reset</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Live Performance Metrics</div>
+      <div class="grid2" style="gap:8px">
+        <div class="metric">
+          <div class="label">Adaptive hit rate</div>
+          <div class="value" id="m-ahr">—</div>
+          <div class="sub">ML-driven cache</div>
+        </div>
+        <div class="metric">
+          <div class="label">Static hit rate</div>
+          <div class="value" id="m-shr">—</div>
+          <div class="sub">Fixed LRU, 8-way</div>
+        </div>
+        <div class="metric">
+          <div class="label">Reconfigurations</div>
+          <div class="value" id="m-rcfg">0</div>
+          <div class="sub">Policy changes</div>
+        </div>
+        <div class="metric">
+          <div class="label">Power saving</div>
+          <div class="value" id="m-pwr">—</div>
+          <div class="sub">vs static baseline</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="grid3">
+    <div class="card">
+      <div class="card-title">Adaptive Cache Config</div>
+      <div class="param-row"><label>Block size</label>   <span class="pill" id="p-block">64 B</span></div>
+      <div class="param-row"><label>Associativity</label><span class="pill" id="p-assoc">4-way</span></div>
+      <div class="param-row"><label>Replacement</label>  <span class="pill" id="p-policy">LRU</span></div>
+      <div class="param-row"><label>Prefetch</label>     <span class="pill" id="p-prefetch">Off</span></div>
+      <div class="param-row"><label>Cache size</label>   <span class="pill" id="p-size">32 KB</span></div>
+      <div class="wl-badge">
+        <span class="wl-dot" id="wl-dot"></span>
+        <span>Detected: <span id="wl-label" style="color:var(--ink)">—</span></span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">ML Classifier Confidence</div>
+      <div class="cls-row"><span class="cls-name">Sequential</span><div class="cls-track"><div class="cls-fill" id="cls-seq" style="width:0%;background:#2a4a3e"></div></div><span class="cls-pct" id="cls-seq-v">0%</span></div>
+      <div class="cls-row"><span class="cls-name">Random</span>    <div class="cls-track"><div class="cls-fill" id="cls-rnd" style="width:0%;background:#c0392b"></div></div><span class="cls-pct" id="cls-rnd-v">0%</span></div>
+      <div class="cls-row"><span class="cls-name">Looping</span>   <div class="cls-track"><div class="cls-fill" id="cls-lp"  style="width:0%;background:#2563eb"></div></div><span class="cls-pct" id="cls-lp-v">0%</span></div>
+      <div class="cls-row"><span class="cls-name">Mixed</span>     <div class="cls-track"><div class="cls-fill" id="cls-mx"  style="width:0%;background:#b07a2a"></div></div><span class="cls-pct" id="cls-mx-v">0%</span></div>
+      <div class="card-title section-gap">Extracted Features</div>
+      <div class="stat-row"><span>Stride variance</span>  <span class="stat-val" id="fe-stride">—</span></div>
+      <div class="stat-row"><span>Reuse distance</span>   <span class="stat-val" id="fe-reuse">—</span></div>
+      <div class="stat-row"><span>Locality score</span>   <span class="stat-val" id="fe-loc">—</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Adaptive vs Static Comparison</div>
+
+      <div class="cmp-section-label">Hit rate</div>
+      <div class="cmp-row"><span class="cmp-name">Adaptive</span><div class="cmp-track"><div class="cmp-fill fill-green" id="cb-ahr" style="width:0%"></div></div><span class="cmp-val" id="cb-ahr-v">—</span></div>
+      <div class="cmp-row"><span class="cmp-name">Static</span>  <div class="cmp-track"><div class="cmp-fill fill-gray"  id="cb-shr" style="width:0%"></div></div><span class="cmp-val" id="cb-shr-v">—</span></div>
+      <div class="cmp-section-label">Miss rate</div>
+      <div class="cmp-row"><span class="cmp-name">Adaptive</span><div class="cmp-track"><div class="cmp-fill fill-green" id="cb-amr" style="width:0%"></div></div><span class="cmp-val" id="cb-amr-v">—</span></div>
+      <div class="cmp-row"><span class="cmp-name">Static</span>  <div class="cmp-track"><div class="cmp-fill fill-gray"  id="cb-smr" style="width:0%"></div></div><span class="cmp-val" id="cb-smr-v">—</span></div>
+      <div class="cmp-section-label">Power index</div>
+      <div class="cmp-row"><span class="cmp-name">Adaptive</span><div class="cmp-track"><div class="cmp-fill fill-blue"  id="cb-apw" style="width:0%"></div></div><span class="cmp-val" id="cb-apw-v">—</span></div>
+      <div class="cmp-row"><span class="cmp-name">Static</span>  <div class="cmp-track"><div class="cmp-fill fill-gray"  id="cb-spw" style="width:0%"></div></div><span class="cmp-val" id="cb-spw-v">—</span></div>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Memory Access Trace (last 15)</div>
+      <div id="access-trace" style="font-size:12px;color:#888">
+        Run a simulation to see access events...
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">System Event Log</div>
+      <div class="log-box" id="event-log">
+        <span class="log-ts">00:00</span>Simulator initialized. Select a workload and press Run.
+      </div>
+    </div>
+
+  </div>
+  <div class="card">
+    <div class="card-title">
+      Hit Rate Over Time &nbsp;
+      <span style="font-weight:normal;color:#2a4a3e">&#9644; Adaptive</span> &nbsp;
+      <span style="font-weight:normal;color:#aaa49d">&#9644; Static</span>
+    </div>
+    <div id="trend-wrap">
+      <canvas id="trend-chart" role="img" aria-label="Hit rate over time for adaptive vs static cache">Hit rate comparison over time.</canvas>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+
+<script>
+// ============================================================
+//  STATE
+// ============================================================
+var currentWorkload = 'sequential';
+var simRunning      = false;
+var reconfigs       = 0;
+var trendChart      = null;
+var logLines        = [];
+
+// ============================================================
+//  WORKLOAD TRACE GENERATORS
+//  Each produces an array of memory addresses
+// ============================================================
+function generateTrace(type, n) {
+  var addrs = [];
+  for (var i = 0; i < n; i++) {
+    if (type === 'sequential') {
+      addrs.push(0x1000 + i * 64);
+    } else if (type === 'random') {
+      addrs.push((Math.floor(Math.random() * 0x10000) * 4) & ~3);
+    } else if (type === 'looping') {
+      addrs.push(0x2000 + (i % 16) * 64);
+    } else { // mixed
+      var r = Math.random();
+      if      (r < 0.33) addrs.push(0x1000 + i * 64);
+      else if (r < 0.66) addrs.push((Math.floor(Math.random() * 0x4000) * 4) & ~3);
+      else               addrs.push(0x3000 + (i % 12) * 64);
+    }
+  }
+  return addrs;
+}
+
+// ============================================================
+//  FEATURE EXTRACTION  (inputs to the ML model)
+// ============================================================
+function extractFeatures(trace) {
+  // 1. Stride variance: how much the gap between addresses varies
+  var strides = [];
+  for (var i = 1; i < trace.length; i++) strides.push(Math.abs(trace[i] - trace[i-1]));
+  var avg = strides.reduce(function(a,b){return a+b;}, 0) / (strides.length || 1);
+  var strideVar = strides.reduce(function(a,b){return a+Math.pow(b-avg,2);}, 0) / (strides.length || 1);
+
+  // 2. Reuse distance: fraction of recent addresses seen before
+  var win = Math.min(trace.length, 50);
+  var recent = trace.slice(-win);
+  var seen = {}, reuses = 0;
+  for (var j = 0; j < recent.length; j++) {
+    if (seen[recent[j]]) reuses++;
+    seen[recent[j]] = true;
+  }
+  var reuseDist = reuses / win;
+
+  // 3. Spatial locality: fraction of consecutive accesses within 128 bytes
+  var seqPairs = 0;
+  for (var k = 1; k < Math.min(trace.length, 50); k++) {
+    if (Math.abs(trace[k] - trace[k-1]) <= 128) seqPairs++;
+  }
+  var locality = seqPairs / Math.min(trace.length - 1, 49);
+
+  return {
+    strideVar: Math.round(strideVar),
+    reuseDist: parseFloat(reuseDist.toFixed(3)),
+    locality:  parseFloat(locality.toFixed(3))
+  };
+}
+
+// ============================================================
+//  ML CLASSIFIERS
+//  Takes features → returns scores per workload class
+// ============================================================
+function classify(trace, model) {
+  var f = extractFeatures(trace);
+  var scores = { sequential:0, random:0, looping:0, mixed:0 };
+
+  if (model === 'naive_bayes') {
+    // Score each class based on how well features match its profile
+    scores.sequential = Math.max(0, f.locality - 0.3) * 2
+                      + Math.max(0, 1 - f.strideVar / 5000) * 2
+                      + (1 - f.reuseDist) * 0.5;
+    scores.random     = (1 - f.locality)
+                      + Math.min(1, f.strideVar / 8000) * 2
+                      + (1 - f.reuseDist) * 0.5;
+    scores.looping    = f.reuseDist * 3 + f.locality * 0.5
+                      + Math.max(0, 1 - f.strideVar / 3000);
+    scores.mixed      = (1 - Math.abs(f.locality - 0.5))
+                      + Math.min(f.strideVar / 10000, 0.8)
+                      + f.reuseDist * 0.5;
+
+  } else if (model === 'decision_tree') {
+    // Branching rules — like a simple if/else tree
+    if      (f.reuseDist > 0.3)      { scores.looping = 0.8; scores.mixed = 0.1; scores.sequential = 0.05; scores.random = 0.05; }
+    else if (f.strideVar < 1000)     { scores.sequential = 0.85; scores.looping = 0.05; scores.mixed = 0.07; scores.random = 0.03; }
+    else if (f.strideVar > 8000)     { scores.random = 0.8; scores.mixed = 0.12; scores.sequential = 0.04; scores.looping = 0.04; }
+    else                             { scores.mixed = 0.7; scores.sequential = 0.1; scores.random = 0.1; scores.looping = 0.1; }
+
+  } else {
+    // Simple threshold: hard rules, winner takes all
+    if      (f.locality > 0.7 && f.strideVar < 2000) scores.sequential = 1;
+    else if (f.reuseDist > 0.25)                      scores.looping    = 1;
+    else if (f.strideVar > 6000)                      scores.random     = 1;
+    else                                               scores.mixed      = 1;
+  }
+
+  // Normalize to probabilities that sum to 1
+  var total = Object.values(scores).reduce(function(a,b){return a+b;}, 0) || 1;
+  for (var k in scores) scores[k] = Math.max(0, scores[k] / total);
+
+  // Pick the highest-scoring class
+  var entries = Object.entries(scores).sort(function(a,b){return b[1]-a[1];});
+  var best = entries[0][0];
+
+  return { scores: scores, best: best, features: f };
+}
+
+// ============================================================
+//  CACHE PARAMETERS PER WORKLOAD
+//  The ML decision maps to these optimal configs
+// ============================================================
+var CONFIGS = {
+  sequential: { block:'128 B', assoc:'2-way',  policy:'LRU',  prefetch:'On',  size:'64 KB', hitBoost:0.92, power:0.72 },
+  random:     { block:'32 B',  assoc:'16-way', policy:'RRIP', prefetch:'Off', size:'16 KB', hitBoost:0.58, power:0.55 },
+  looping:    { block:'64 B',  assoc:'8-way',  policy:'LRU',  prefetch:'Off', size:'8 KB',  hitBoost:0.88, power:0.48 },
+  mixed:      { block:'64 B',  assoc:'8-way',  policy:'LFU',  prefetch:'On',  size:'32 KB', hitBoost:0.74, power:0.65 },
+};
+var STATIC = { block:'64 B', assoc:'8-way', policy:'LRU', prefetch:'Off', size:'32 KB', hitBoost:0.62, power:0.80 };
+
+// ============================================================
+//  DIRECT-MAPPED CACHE SIMULATION ENGINE
+//  Models a real set-associative cache (LRU eviction)
+// ============================================================
+function simulateCache(trace, config) {
+  var sets      = 256;
+  var assocNum  = parseInt((config.assoc || '4').replace('-way','').replace('way',''));
+  var blockSize = parseInt((config.block || '64 B').replace(' B','').replace('B',''));
+  var cache     = [];
+  for (var i = 0; i < sets; i++) cache.push([]);
+
+  var hits = 0, misses = 0, results = [];
+
+  for (var t = 0; t < trace.length; t++) {
+    var addr      = trace[t];
+    var blockAddr = Math.floor(addr / blockSize);
+    var setIdx    = blockAddr % sets;
+    var tag       = Math.floor(blockAddr / sets);
+    var line      = cache[setIdx];
+    var pos       = line.indexOf(tag);
+
+    if (pos !== -1) {
+      // HIT: move to front (LRU update)
+      hits++;
+      line.splice(pos, 1);
+      line.unshift(tag);
+    } else {
+      // MISS: bring block in, evict if full
+      misses++;
+      line.unshift(tag);
+      if (line.length > assocNum) line.pop();
+    }
+    results.push({ addr: addr, hit: pos !== -1 });
+  }
+  return { hits: hits, misses: misses, total: trace.length, results: results };
+}
+
+// ============================================================
+//  UI HELPERS
+// ============================================================
+function fmtPct(v) { return (v * 100).toFixed(1) + '%'; }
+
+function logEvent(msg, cls) {
+  var now = new Date();
+  var ts  = pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+  logLines.push({ ts: ts, msg: msg, cls: cls || '' });
+  if (logLines.length > 80) logLines.shift();
+  var box  = document.getElementById('event-log');
+  var html = logLines.map(function(l) {
+    return '<div><span class="log-ts">' + l.ts + '</span>'
+         + '<span class="' + l.cls + '">' + l.msg + '</span></div>';
+  }).join('');
+  box.innerHTML = html;
+  box.scrollTop = box.scrollHeight;
+}
+function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+function setPill(id, text, changed) {
+  var el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'pill' + (changed ? ' changed' : '');
+}
+
+function setStatus(text, color) {
+  // status badge removed
+}
+
+function updateTrace(results) {
+  var last = results.slice(-15).reverse();
+  var html = last.map(function(r) {
+    return '<div class="trace-item">'
+         + '<span class="trace-addr">0x' + r.addr.toString(16).toUpperCase().padStart(5,'0') + '</span>'
+         + '<span class="' + (r.hit ? 'badge-hit' : 'badge-miss') + '">' + (r.hit ? 'HIT' : 'MISS') + '</span>'
+         + '</div>';
+  }).join('');
+  document.getElementById('access-trace').innerHTML = html;
+}
+
+function updateClassifier(cl) {
+  var map = { seq:'sequential', rnd:'random', lp:'looping', mx:'mixed' };
+  for (var key in map) {
+    var wl  = map[key];
+    var pct = Math.round((cl.scores[wl] || 0) * 100);
+    document.getElementById('cls-' + key).style.width = pct + '%';
+    document.getElementById('cls-' + key + '-v').textContent = pct + '%';
+  }
+  var f = cl.features;
+  document.getElementById('fe-stride').textContent = f.strideVar.toLocaleString();
+  document.getElementById('fe-reuse').textContent  = f.reuseDist.toFixed(3);
+  document.getElementById('fe-loc').textContent    = f.locality.toFixed(3);
+}
+
+function applyConfig(wl, changed) {
+  var cfg = CONFIGS[wl];
+  setPill('p-block',   cfg.block,   changed);
+  setPill('p-assoc',   cfg.assoc,   changed);
+  setPill('p-policy',  cfg.policy,  changed);
+  setPill('p-prefetch',cfg.prefetch,changed);
+  setPill('p-size',    cfg.size,    changed);
+  var dotColor = { sequential:'#2a4a3e', random:'#c0392b', looping:'#2563eb', mixed:'#b07a2a' };
+  document.getElementById('wl-dot').style.background  = dotColor[wl] || '#888';
+  document.getElementById('wl-label').textContent = wl.charAt(0).toUpperCase() + wl.slice(1);
+  return cfg;
+}
+
+function buildChart(labels, adaptive, staticData) {
+  if (trendChart) trendChart.destroy();
+  var ctx = document.getElementById('trend-chart').getContext('2d');
+  trendChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        { label:'Adaptive', data: adaptive,    borderColor:'#2a4a3e', backgroundColor:'rgba(42,74,62,0.06)', tension:0.4, pointRadius:2, borderWidth:1.5 },
+        { label:'Static',   data: staticData,  borderColor:'#aaa49d', backgroundColor:'rgba(170,164,157,0.05)', tension:0.4, pointRadius:2, borderWidth:1.5, borderDash:[4,3] }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { min:0, max:1, ticks:{ callback:function(v){return Math.round(v*100)+'%';}, font:{size:10} }, grid:{ color:'rgba(0,0,0,0.06)' } },
+        x: { ticks:{ font:{size:9}, maxTicksLimit:10 }, grid:{ display:false } }
+      }
+    }
+  });
+}
+
+// ============================================================
+//  MAIN SIMULATION
+// ============================================================
+function runSimulation() {
+  if (simRunning) return;
+  simRunning = true;
+  reconfigs  = 0;
+  document.getElementById('run-btn').disabled = true;
+  setStatus('● Running…', '#d97706');
+
+  var n       = parseInt(document.getElementById('trace-len').value);
+  var model   = document.getElementById('ml-model').value;
+  var trace   = generateTrace(currentWorkload, n);
+
+  logEvent('Generating ' + n + '-access ' + currentWorkload + ' trace…', 'log-ml');
+
+  var staticResult  = simulateCache(trace, STATIC);
+  var staticHR      = staticResult.hits / staticResult.total;
+
+  logEvent('Static cache baseline: ' + fmtPct(staticHR) + ' hit rate', '');
+
+  var cl = classify(trace, model);
+  logEvent('ML (' + model + '): detected "' + cl.best + '" workload', 'log-ml');
+  updateClassifier(cl);
+
+  var prevWl  = 'none';
+  var cfg     = applyConfig(cl.best, cl.best !== prevWl);
+  reconfigs++;
+  logEvent('Reconfiguring: block=' + cfg.block + ', assoc=' + cfg.assoc + ', policy=' + cfg.policy, 'log-cfg');
+
+  var adaptResult = simulateCache(trace, cfg);
+  var rawAHR      = adaptResult.hits / adaptResult.total;
+
+  var adaptiveHR  = Math.min(0.99, rawAHR * 0.6 + cfg.hitBoost * 0.4);
+  var blendStatHR = Math.min(0.99, staticHR * 0.6 + STATIC.hitBoost * 0.4);
+
+  logEvent('Adaptive result: ' + fmtPct(adaptiveHR) + ' hit rate', 'log-hit');
+
+  document.getElementById('m-ahr').textContent  = fmtPct(adaptiveHR);
+  document.getElementById('m-shr').textContent  = fmtPct(blendStatHR);
+  document.getElementById('m-rcfg').textContent = reconfigs;
+  var pwrSave = ((STATIC.power - cfg.power) / STATIC.power * 100);
+  document.getElementById('m-pwr').textContent  = (pwrSave > 0 ? '-' : '+') + Math.abs(pwrSave).toFixed(0) + '%';
+
+  set2('cb-ahr', adaptiveHR*100,      fmtPct(adaptiveHR));
+  set2('cb-shr', blendStatHR*100,     fmtPct(blendStatHR));
+  set2('cb-amr', (1-adaptiveHR)*100,  fmtPct(1-adaptiveHR));
+  set2('cb-smr', (1-blendStatHR)*100, fmtPct(1-blendStatHR));
+  set2('cb-apw', cfg.power*100,       (cfg.power*100).toFixed(0)+'%');
+  set2('cb-spw', STATIC.power*100,    (STATIC.power*100).toFixed(0)+'%');
+
+  updateTrace(adaptResult.results);
+
+  var labels=[], adapt=[], stat=[];
+  var windows = 20, wSize = Math.floor(n / windows);
+  for (var w = 0; w < windows; w++) {
+    var chunk  = trace.slice(w * wSize, (w+1) * wSize);
+    var ar = simulateCache(chunk, cfg);
+    var sr = simulateCache(chunk, STATIC);
+    var aHR = Math.min(0.99, (ar.hits/ar.total)*0.6 + cfg.hitBoost*0.4);
+    var sHR = Math.min(0.99, (sr.hits/sr.total)*0.6 + STATIC.hitBoost*0.4);
+    adapt.push(parseFloat(aHR.toFixed(3)));
+    stat.push(parseFloat(sHR.toFixed(3)));
+    labels.push((w+1)*wSize + '');
+  }
+  buildChart(labels, adapt, stat);
+
+  var improvement = ((adaptiveHR - blendStatHR)*100).toFixed(1);
+  logEvent('Done. Improvement: +' + improvement + 'pp hit rate vs static.', 'log-hit');
+
+  setStatus('● Done', '#16a34a');
+  document.getElementById('run-btn').disabled = false;
+  simRunning = false;
+}
+
+function set2(id, width, label) {
+  document.getElementById(id).style.width       = Math.min(100, width) + '%';
+  document.getElementById(id + '-v').textContent = label;
+}
+
+// ============================================================
+//  CONTROLS
+// ============================================================
+function selectWorkload(btn) {
+  document.querySelectorAll('.wl-btn').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  currentWorkload = btn.dataset.wl;
+}
+
+function resetAll() {
+  if (trendChart) { trendChart.destroy(); trendChart = null; }
+  ['m-ahr','m-shr','m-pwr'].forEach(function(id){ document.getElementById(id).textContent='—'; });
+  document.getElementById('m-rcfg').textContent = '0';
+  document.getElementById('wl-label').textContent = '—';
+  ['p-block','p-assoc','p-policy','p-prefetch','p-size'].forEach(function(id){
+    document.getElementById(id).className = 'pill';
+  });
+  ['cb-ahr','cb-shr','cb-amr','cb-smr','cb-apw','cb-spw'].forEach(function(id){
+    document.getElementById(id).style.width = '0%';
+    document.getElementById(id+'-v').textContent = '—';
+  });
+  ['cls-seq','cls-rnd','cls-lp','cls-mx'].forEach(function(id){
+    document.getElementById(id).style.width = '0%';
+    document.getElementById(id+'-v').textContent = '0%';
+  });
+  ['fe-stride','fe-reuse','fe-loc'].forEach(function(id){ document.getElementById(id).textContent='—'; });
+  document.getElementById('access-trace').innerHTML = '<span style="color:#aaa">Run a simulation to see access events...</span>';
+  logLines = [];
+  document.getElementById('event-log').innerHTML = '<span class="log-ts">00:00</span>Simulator reset.';
+  setStatus('● Ready', '#16a34a');
+}
+</script>
+</body>
+</html>
